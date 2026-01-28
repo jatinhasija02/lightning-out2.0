@@ -109,7 +109,7 @@ export default function LightningOutReact() {
     "https://orgfarm-5ee5e22dc0-dev-ed.develop.my.salesforce.com";
 
   const AURA_APP = "c:LightningOutApp";
-  const AURA_COMPONENT = "c:HelloWorldAura";
+  const AURA_COMPONENT = "c:HelloWorldLwc";
 
   useEffect(() => {
     if (document.getElementById("lightning-out")) return;
