@@ -36,7 +36,7 @@ const LightningOutApp = () => {
       ></lightning-out-application>
 
       {/* LWC Web Component */}
-      <c-component-hello-world-lwc></c-component-hello-world-lwc>
+      <c-component-hello-world-lwc> Somrnitbrjebg</c-component-hello-world-lwc>
     </>
   );
 };
