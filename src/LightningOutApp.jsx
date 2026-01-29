@@ -31,7 +31,7 @@ const LightningOutApp = () => {
     <>
       <lightning-out-application
         components="c-hello-world-lwc"
-        frontdoor-url="https://algocirrus-b6-dev-ed.develop.my.salesforce.com/secur/frontdoor.jsp?ssid=00DgL000009aOQ2!AQEAQBqBfwfIYbWJycinlS7.IkFWkMV4vfau3LZCjNlC6l9u3YQ9VrP_VlC.Ld3iku7KM7ZXwgmkCzICZNHjssFWrpgwQzR3"
+        frontdoor-url="https://algocirrus-b6-dev-ed.develop.my.salesforce.com/secur/frontdoor.jsp?ssid=00DNS00000NKw5p!AQEAQIsqSxMbz8O0NATSse1cxl8LiFSIHapDPGRoTJZFk9Zlo_sj0bfbVIznNKuaB6y3bcYF69fvcMrKRsxnkKqqTz6J4Zoh"
         app-id="1UsNS0000000CUD0A2"
       ></lightning-out-application>
 
