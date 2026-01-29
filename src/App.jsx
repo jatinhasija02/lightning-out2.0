@@ -5,8 +5,8 @@ function App() {
 
   return (
     <>
-     //<SalesforceLWC/>
-      <LightningOutApp/>
+     {/* <SalesforceLWC/> */}
+     <LightningOutApp/>
     </>
   )
 }
