@@ -1,5 +1,4 @@
-import * as jwt from 'jsonwebtoken';
-
+const jwt = require('jsonwebtoken');
 export default async function handler(req, res) {
   try {
     const rawKey = process.env.SF_PRIVATE_KEY || '';
@@ -43,3 +42,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "RUNTIME_CRASH", message: err.message });
   }
 }
+
