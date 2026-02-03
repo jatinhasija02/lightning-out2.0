@@ -1,19 +1,11 @@
 import jwt from 'jsonwebtoken';
 
 export default async function handler(req, res) {
-  // We force a 200 status so Vercel doesn't show the generic 500 error page
   res.setHeader('Content-Type', 'application/json');
-
   try {
-    // 1. Check if variables exist to avoid 'undefined' crashes
-    if (!process.env.SF_PRIVATE_KEY) {
-      return res.status(200).json({ status: "error", message: "Environment Variable SF_PRIVATE_KEY is missing." });
-    }
+    const rawKey = process.env.SF_PRIVATE_KEY || "";
+    const privateKey = rawKey.replace(/\\n/g, '\n');
 
-    // 2. Format the key (assuming you used literal \n in Vercel UI)
-    const privateKey = process.env.SF_PRIVATE_KEY.replace(/\\n/g, '\n');
-
-    // 3. Sign the JWT
     const token = jwt.sign({
       iss: process.env.SF_CONSUMER_KEY,
       sub: process.env.SF_USERNAME,
@@ -21,7 +13,7 @@ export default async function handler(req, res) {
       exp: Math.floor(Date.now() / 1000) + 300
     }, privateKey, { algorithm: 'RS256' });
 
-    // 4. Request Access Token
+    // Step 1: Get Access Token
     const sfRes = await fetch("https://login.salesforce.com/services/oauth2/token", {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -31,20 +23,27 @@ export default async function handler(req, res) {
       })
     });
     
-    const data = await sfRes.json();
+    const authData = await sfRes.json();
+    if (!sfRes.ok) return res.status(200).json({ status: "auth_failed", authData });
+
+    // Step 2: Get Lightning Out URL
+    // We check if the response is valid before trying to parse it as JSON
+    const loRes = await fetch(`${authData.instance_url}/services/oauth2/singleaccess?access_token=${authData.access_token}&application_id=${process.env.SF_APP_ID}`);
     
-    if (!sfRes.ok) {
-      return res.status(200).json({ status: "salesforce_rejected", details: data });
+    const loText = await loRes.text(); // Get raw text first to avoid 'Unexpected token' crash
+    
+    try {
+      const loData = JSON.parse(loText);
+      return res.status(200).json({ success: true, url: loData.frontdoor_url });
+    } catch (e) {
+      return res.status(200).json({ 
+        status: "handshake_failed", 
+        message: loText, // This will show the actual 'Invalid_Param' error text
+        tip: "Check if SF_APP_ID is the correct 18-character ID from your Lightning Out App." 
+      });
     }
 
-    // 5. Get Lightning Out 2.0 URL
-    const loRes = await fetch(`${data.instance_url}/services/oauth2/singleaccess?access_token=${data.access_token}&application_id=${process.env.SF_APP_ID}`);
-    const loData = await loRes.json();
-
-    return res.status(200).json({ success: true, url: loData.frontdoor_url });
-
   } catch (err) {
-    // This will now show the actual error on your "System Status" screen
     return res.status(200).json({ status: "runtime_crash", message: err.message });
   }
 }
