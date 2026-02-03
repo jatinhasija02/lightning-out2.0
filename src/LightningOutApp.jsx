@@ -19,38 +19,45 @@ const LightningOutApp = () => {
           script.src = "https://algocirrus-b6-dev-ed.develop.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js";
           
           script.onload = () => {
-            console.log("LOG [3]: index.iife.prod.js loaded successfully.");
+            console.log("LOG [3]: index.iife.prod.js loaded.");
             const loApp = document.querySelector("lightning-out-application");
             
             if (loApp) {
-              console.log("LOG [4]: <lightning-out-application> found. Attaching 'ready' listener...");
+              console.log("LOG [4]: Attaching handshake...");
               
-              // Ensure listener is attached before setting the attribute
-              loApp.addEventListener("ready", (event) => {
-                console.log("LOG [5]: SUCCESS! 'ready' event captured.", event);
+              // Event listener for the official handshake completion
+              loApp.addEventListener("ready", () => {
+                console.log("LOG [5]: SUCCESS! 'ready' event captured.");
                 setLoading(false);
               });
 
-              console.log("LOG [6]: Setting frontdoor-url to trigger handshake...");
+              // Trigger the handshake
               loApp.setAttribute("frontdoor-url", result.url);
-            } else {
-              console.error("LOG [ERR]: <lightning-out-application> tag missing from DOM.");
-              setLogStatus("Error: Container tag not found.");
+
+              // FAILSAFE: If the 'ready' event is swallowed, force hide loading
+              setTimeout(() => {
+                const component = document.querySelector("c-hello-world-lwc");
+                if (component) {
+                  console.log("LOG [7]: Failsafe triggered. Hiding overlay.");
+                  setLoading(false);
+                }
+              }, 3000); 
+
             }
           };
 
           script.onerror = (err) => {
-            console.error("LOG [ERR]: Script failed to load. Check CORS/CSP.", err);
+            console.error("LOG [ERR]: Script failed to load.", err);
             setLogStatus("Network Error: Could not load Salesforce script.");
           };
 
           document.body.appendChild(script);
         } else {
-          console.error("LOG [ERR]: API returned failure status.", result);
+          console.error("LOG [ERR]: API failure status.", result);
           setLogStatus(`API Error: ${result.authData?.error_description || result.status || 'Unknown'}`);
         }
       } catch (err) {
-        console.error("LOG [ERR]: Runtime crash in useEffect.", err);
+        console.error("LOG [ERR]: Runtime crash.", err);
         setLogStatus("Crash: " + err.message);
       }
     };
@@ -59,23 +66,30 @@ const LightningOutApp = () => {
   }, []);
 
   return (
-    <div style={{ width: '100%', minHeight: '100vh', background: '#242424', color: 'white', padding: '20px' }}>
+    <div style={{ width: '100%', minHeight: '100vh', background: '#242424', color: 'white' }}>
+      {/* Loading Overlay: Only shows if loading is true */}
       {loading && (
-        <div style={{ textAlign: 'center', marginTop: '50px' }}>
+        <div style={{ textAlign: 'center', paddingTop: '100px', width: '100%', position: 'absolute', zIndex: 10 }}>
           <h2>{logStatus}</h2>
-          <p style={{ color: '#888' }}>Check Browser Console (F12) for detailed logs.</p>
+          <p style={{ color: '#888' }}>Establishing secure bridge...</p>
         </div>
       )}
       
-      <div style={{ opacity: loading ? 0 : 1 }}>
-        {/* Tag is kept empty as required by Lightning Out 2.0 */}
+      {/* Main Container: Visibility controlled by loading state */}
+      <div style={{ 
+        opacity: loading ? 0 : 1, 
+        padding: '20px', 
+        width: '100%', 
+        transition: 'opacity 0.5s ease' 
+      }}>
+        {/* Empty container as required for LO 2.0 */}
         <lightning-out-application
           components="c-hello-world-lwc"
           app-id="1UsNS0000000CUD0A2"
         ></lightning-out-application>
 
-        {/* Component tag is placed as a sibling */}
-        <div className="slds-scope">
+        {/* LWC Sibling */}
+        <div className="slds-scope" style={{ width: '100%', minHeight: '500px' }}>
           <c-hello-world-lwc></c-hello-world-lwc>
         </div>
       </div>
