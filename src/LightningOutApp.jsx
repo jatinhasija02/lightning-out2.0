@@ -5,7 +5,7 @@ const LightningOutApp = () => {
   const [sessionUrl, setSessionUrl] = useState(null);
 
   useEffect(() => {
-    // Check if we have a session URL in the browser bar
+    // Check if we have a session URL from the SSO redirect
     const params = new URLSearchParams(window.location.search);
     const urlFromSso = params.get("session_url");
 
@@ -17,12 +17,11 @@ const LightningOutApp = () => {
   }, []);
 
   const handleLogin = () => {
-    // Redirect user to Salesforce for authentication
     const authUrl = "https://login.salesforce.com/services/oauth2/authorize";
     const params = new URLSearchParams({
       response_type: 'code',
-      client_id: '3MVG9VMBZCsTL9hnVO_6Q8ke.yyExmYi92cqK7ggByeErX0x.v9EFR9JFcaZhdTvibyAdqHSYFFhDtrdb3Fn8', // Use your Consumer Key
-      redirect_uri: 'https://lightning-out2-0.vercel.app/api/auth-callback',
+      client_id: '3MVG9VMBZCsTL9hnVO_6Q8ke.yyExmYi92cqK7ggByeErX0x.v9EFR9JFcaZhdTvibyAdqHSYFFhDtrdb3Fn8', // Must match Vercel Env
+      redirect_uri: 'https://lightning-out2-0.vercel.app/api/auth-callback', 
       scope: 'openid api'
     });
     window.location.href = `${authUrl}?${params.toString()}`;
@@ -47,17 +46,17 @@ const LightningOutApp = () => {
     <div style={{ width: '100%', minHeight: '100vh', background: '#242424', color: 'white', textAlign: 'center' }}>
       {!sessionUrl ? (
         <div style={{ paddingTop: '100px' }}>
-          <h1>Salesforce User Portal</h1>
+          <h2>Salesforce SSO Portal</h2>
           <button 
             onClick={handleLogin}
-            style={{ padding: '15px 30px', fontSize: '18px', cursor: 'pointer', backgroundColor: '#00a1e0', color: 'white', border: 'none', borderRadius: '5px' }}
+            style={{ padding: '15px 30px', fontSize: '18px', cursor: 'pointer', borderRadius: '8px', backgroundColor: '#00a1e0', color: 'white', border: 'none' }}
           >
-            Login with Salesforce SSO
+            Login with Salesforce
           </button>
         </div>
       ) : (
         <div style={{ opacity: loading ? 0 : 1, padding: '20px' }}>
-          {loading && <h2>Establishing User Session...</h2>}
+          {loading && <h2>Authenticating User...</h2>}
           <lightning-out-application components="c-hello-world-lwc" app-id="1UsNS0000000CUD0A2" />
           <div className="slds-scope">
             <c-hello-world-lwc />
