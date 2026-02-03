@@ -1,27 +1,55 @@
 import { useEffect, useState } from "react";
 
 const LightningOutApp = () => {
-  const [errorLog, setErrorLog] = useState("Waiting for response...");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // We are calling the API directly to see the RAW HTML or Error
-    fetch("/api/get-url")
-      .then(async (res) => {
-        const text = await res.text();
-        if (!res.ok) {
-          setErrorLog(`SERVER CRASHED: ${text.substring(0, 200)}...`);
+    const initLightningOut = async () => {
+      try {
+        const response = await fetch("/api/get-url");
+        const result = await response.json();
+
+        if (result.success && result.url) {
+          const script = document.createElement("script");
+          script.src = "https://algocirrus-b6-dev-ed.develop.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js";
+          script.async = true;
+
+          script.onload = () => {
+            const lightningOutApp = document.querySelector("lightning-out-application");
+            if (lightningOutApp) {
+              // Dynamically set the frontdoor URL from our API
+              lightningOutApp.setAttribute("frontdoor-url", result.url);
+              
+              lightningOutApp.addEventListener("ready", () => {
+                console.log("LWC Rendered Successfully!");
+                setLoading(false);
+              });
+            }
+          };
+          document.body.appendChild(script);
         } else {
-          setErrorLog(`SUCCESS: ${text}`);
+          setError(result.status || "Failed to get URL");
         }
-      })
-      .catch(err => setErrorLog(`FETCH ERROR: ${err.message}`));
+      } catch (err) {
+        setError(err.message);
+      }
+    };
+
+    initLightningOut();
   }, []);
 
+  if (error) return <div style={{color: 'red'}}>Error: {error}</div>;
+
   return (
-    <div style={{color: 'white', padding: '20px', background: '#333'}}>
-      <h1>System Status</h1>
-      <pre>{errorLog}</pre>
-    </div>
+    <>
+      {loading && <div style={{color: 'white'}}>Connecting to Salesforce...</div>}
+      <lightning-out-application
+        components="c-hello-world-lwc"
+        app-id="1UsNS0000000CUD0A2"
+      ></lightning-out-application>
+      <c-hello-world-lwc></c-hello-world-lwc>
+    </>
   );
 };
 
