@@ -24,10 +24,14 @@ const LightningOutApp = () => {
     startLWC();
   }, []);
 
-  return (
-    <div style={{ background: '#1a1a1a', minHeight: '100vh', padding: '20px' }}>
-      {loading && <h2 style={{ color: 'white' }}>Initializing Salesforce Session...</h2>}
-      
+  return(
+  <div style={{ 
+    textAlign: 'left', // Overrides the center align from App.css
+    width: '100%',
+    padding: '20px',
+    boxSizing: 'border-box'
+  }}>
+    {loading && <h2 style={{ color: 'white', textAlign: 'center' }}>Initializing Salesforce Session...</h2>}
       <lightning-out-application
         components="c-hello-world-lwc"
         app-id="1UsNS0000000CUD0A2"
