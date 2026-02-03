@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 
 export default async function handler(req, res) {
-  // Set JSON header to prevent browser parsing errors
+  // Ensure JSON output to prevent frontend parsing errors
   res.setHeader('Content-Type', 'application/json');
 
   try {
@@ -31,18 +31,24 @@ export default async function handler(req, res) {
     if (!sfRes.ok) return res.status(200).json({ status: "auth_failed", authData });
 
     // 4. Step 2: Perform the Handshake for Lightning Out 2.0
-    // Using the dynamic instance_url from authData to prevent 'Invalid_Param'
+    // Using the Authorization Header instead of URL params to fix 'Invalid_Param'
     const appId = process.env.SF_APP_ID;
     const loUrl = new URL(`${authData.instance_url}/services/oauth2/singleaccess`);
-    loUrl.searchParams.append("access_token", authData.access_token);
     loUrl.searchParams.append("application_id", appId);
 
-    const loRes = await fetch(loUrl.toString());
+    const loRes = await fetch(loUrl.toString(), {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authData.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
     const loText = await loRes.text();
     
     try {
-      // If valid, Salesforce returns a JSON containing the frontdoor_url
       const loData = JSON.parse(loText);
+      // If parsing succeeds, we have our frontdoor URL
       return res.status(200).json({ success: true, url: loData.frontdoor_url });
     } catch (e) {
       // If parsing fails, we capture the raw error message (like 'Invalid_Param')
@@ -51,13 +57,12 @@ export default async function handler(req, res) {
         message: loText,
         debug: {
           sent_app_id: appId,
-          instance_used: authData.instance_url
+          instance: authData.instance_url
         } 
       });
     }
 
   } catch (err) {
-    // Captures structural crashes (e.g., library or network issues)
     return res.status(200).json({ status: "runtime_crash", message: err.message });
   }
 }
