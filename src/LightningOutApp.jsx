@@ -58,25 +58,29 @@ const LightningOutApp = () => {
     startLWC();
   }, []);
 
-  return (
-    <div style={{ width: '100%', minHeight: '100vh', background: '#242424', color: 'white', padding: '20px' }}>
-      {loading && (
-        <div style={{ textAlign: 'center', marginTop: '50px' }}>
-          <h2>{logStatus}</h2>
-          <p style={{ color: '#888' }}>Check Browser Console (F12) for detailed logs.</p>
-        </div>
-      )}
-      
-      <div style={{ opacity: loading ? 0 : 1 }}>
-        <lightning-out-application
-          components="c-hello-world-lwc"
-          app-id="1UsNS0000000CUD0A2"
-        >
-          <c-hello-world-lwc></c-hello-world-lwc>
-        </lightning-out-application>
+  return return (
+  <div style={{ width: '100%', minHeight: '100vh', background: '#242424', color: 'white', padding: '20px' }}>
+    {loading && (
+      <div style={{ textAlign: 'center', marginTop: '50px' }}>
+        <h2>{logStatus}</h2>
+        <p style={{ color: '#888' }}>Check Browser Console (F12) for detailed logs.</p>
+      </div>
+    )}
+    
+    <div style={{ opacity: loading ? 0 : 1 }}>
+      {/* 1. This tag MUST be empty */}
+      <lightning-out-application
+        components="c-hello-world-lwc"
+        app-id="1UsNS0000000CUD0A2"
+      ></lightning-out-application>
+
+      {/* 2. Place the component tag as a SIBLING, not a child */}
+      <div className="slds-scope">
+        <c-hello-world-lwc></c-hello-world-lwc>
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default LightningOutApp;
