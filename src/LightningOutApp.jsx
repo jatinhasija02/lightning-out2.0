@@ -65,36 +65,26 @@ const LightningOutApp = () => {
     startLWC();
   }, []);
 
-  return (
-    <div style={{ width: '100%', minHeight: '100vh', background: '#242424', color: 'white' }}>
-      {/* Loading Overlay: Only shows if loading is true */}
-      {loading && (
-        <div style={{ textAlign: 'center', paddingTop: '100px', width: '100%', position: 'absolute', zIndex: 10 }}>
-          <h2>{logStatus}</h2>
-          <p style={{ color: '#888' }}>Establishing secure bridge...</p>
-        </div>
-      )}
-      
-      {/* Main Container: Visibility controlled by loading state */}
-      <div style={{ 
-        opacity: loading ? 0 : 1, 
-        padding: '20px', 
-        width: '100%', 
-        transition: 'opacity 0.5s ease' 
-      }}>
-        {/* Empty container as required for LO 2.0 */}
-        <lightning-out-application
-          components="c-hello-world-lwc"
-          app-id="1UsNS0000000CUD0A2"
-        ></lightning-out-application>
+  return return (
+  <div style={{ width: '100%', minHeight: '100vh', background: '#242424', padding: '0' }}>
+    {/* Loading Overlay logic stays here */}
+    
+    <div style={{ 
+      opacity: loading ? 0 : 1, 
+      width: '100%',
+      backgroundColor: 'transparent' // Ensure this is transparent
+    }}>
+      <lightning-out-application
+        components="c-hello-world-lwc"
+        app-id="1UsNS0000000CUD0A2"
+      ></lightning-out-application>
 
-        {/* LWC Sibling */}
-        <div className="slds-scope" style={{ width: '100%', minHeight: '500px' }}>
-          <c-hello-world-lwc></c-hello-world-lwc>
-        </div>
+      <div className="slds-scope">
+        <c-hello-world-lwc></c-hello-world-lwc>
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default LightningOutApp;
