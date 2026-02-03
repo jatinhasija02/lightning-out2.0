@@ -1,34 +1,27 @@
 import { useEffect, useState } from "react";
 
 const LightningOutApp = () => {
-  const [dynamicUrl, setDynamicUrl] = useState("");
+  const [errorLog, setErrorLog] = useState("Waiting for response...");
 
   useEffect(() => {
-    // 1. Ask our "Secret Agent" file for a fresh URL
+    // We are calling the API directly to see the RAW HTML or Error
     fetch("/api/get-url")
-      .then(res => res.json())
-      .then(data => setDynamicUrl(data.url));
-
-    // 2. Load the Salesforce Script
-    const script = document.createElement("script");
-    script.src = "https://algocirrus-b6-dev-ed.develop.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js";
-    script.async = true;
-    document.body.appendChild(script);
+      .then(async (res) => {
+        const text = await res.text();
+        if (!res.ok) {
+          setErrorLog(`SERVER CRASHED: ${text.substring(0, 200)}...`);
+        } else {
+          setErrorLog(`SUCCESS: ${text}`);
+        }
+      })
+      .catch(err => setErrorLog(`FETCH ERROR: ${err.message}`));
   }, []);
 
-  // Don't show anything until we have the URL
-  if (!dynamicUrl) return <div>Connecting to Salesforce...</div>;
-
   return (
-    <>
-      <lightning-out-application
-        components="c-hello-world-lwc"
-        frontdoor-url={dynamicUrl}
-        app-id="1UsNS0000000CUD0A2"
-      ></lightning-out-application>
-
-      <c-hello-world-lwc></c-hello-world-lwc>
-    </>
+    <div style={{color: 'white', padding: '20px', background: '#333'}}>
+      <h1>System Status</h1>
+      <pre>{errorLog}</pre>
+    </div>
   );
 };
 
