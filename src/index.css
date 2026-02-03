@@ -11,4 +11,6 @@ body {
   margin: 0;       /* Removed auto centering */
   padding: 0;      /* Removed default padding */
   width: 100vw;
+  background-color: dark-grey;
 }
+
