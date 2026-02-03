@@ -4,7 +4,6 @@ c-hello-world-lwc {
     min-height: 400px !important; /* Give it a definite height */
     width: 100% !important;
     visibility: visible !important;
-    background-color: transparent !important;
 }
 
 /* Ensure the SLDS scope doesn't collapse */
