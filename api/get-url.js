@@ -3,19 +3,22 @@ import jwt from 'jsonwebtoken';
 export default async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
   try {
-    // 1. Force conversion of literal \n strings to actual newlines
+    // 1. Force the string to interpret \n as actual newlines
     const rawKey = process.env.SF_PRIVATE_KEY || "";
     const privateKey = rawKey.replace(/\\n/g, '\n');
 
-    // 2. Generate the JWT
-    const token = jwt.sign({
+    // 2. JWT Setup
+    const payload = {
       iss: process.env.SF_CONSUMER_KEY,
       sub: process.env.SF_USERNAME,
       aud: "https://login.salesforce.com",
       exp: Math.floor(Date.now() / 1000) + 300
-    }, privateKey, { algorithm: 'RS256' });
+    };
 
-    // 3. Salesforce Token Exchange
+    // 3. Sign the token
+    const token = jwt.sign(payload, privateKey, { algorithm: 'RS256' });
+
+    // 4. Get Salesforce Access Token
     const sfRes = await fetch("https://login.salesforce.com/services/oauth2/token", {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -28,7 +31,7 @@ export default async function handler(req, res) {
     const authData = await sfRes.json();
     if (!sfRes.ok) return res.status(200).json({ status: "auth_failed", authData });
 
-    // 4. Get Lightning Out 2.0 URL
+    // 5. Get Lightning Out 2.0 URL
     const loRes = await fetch(`${authData.instance_url}/services/oauth2/singleaccess?access_token=${authData.access_token}&application_id=${process.env.SF_APP_ID}`);
     const loText = await loRes.text();
     
