@@ -2,11 +2,14 @@ import jwt from 'jsonwebtoken';
 
 export default async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
-
   try {
-    const rawKey = process.env.SF_PRIVATE_KEY || "";
-    const privateKey = rawKey.replace(/\\n/g, '\n');
+    // 1. Retrieve and repair the key string
+    let rawKey = process.env.SF_PRIVATE_KEY || "";
+    
+    // Convert escaped \n characters back to real newlines
+    const privateKey = rawKey.split(String.raw`\n`).join('\n');
 
+    // 2. Generate the JWT
     const token = jwt.sign({
       iss: process.env.SF_CONSUMER_KEY,
       sub: process.env.SF_USERNAME,
@@ -14,7 +17,7 @@ export default async function handler(req, res) {
       exp: Math.floor(Date.now() / 1000) + 300
     }, privateKey, { algorithm: 'RS256' });
 
-    // Step 1: Exchange JWT for Access Token
+    // 3. Salesforce Token Exchange
     const sfRes = await fetch("https://login.salesforce.com/services/oauth2/token", {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -27,31 +30,23 @@ export default async function handler(req, res) {
     const authData = await sfRes.json();
     if (!sfRes.ok) return res.status(200).json({ status: "auth_failed", authData });
 
-    // Step 2: Perform the Handshake
+    // 4. Handshake for Lightning Out
     const appId = process.env.SF_APP_ID;
     const loUrl = new URL(`${authData.instance_url}/services/oauth2/singleaccess`);
     loUrl.searchParams.append("application_id", appId);
 
     const loRes = await fetch(loUrl.toString(), {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${authData.access_token}`,
-        'Content-Type': 'application/json'
-      }
+      headers: { 'Authorization': `Bearer ${authData.access_token}` }
     });
     
     const loData = await loRes.json();
-    
-    // Capture the URI specifically from your debug logs
     const finalUrl = loData.frontdoor_uri || loData.frontdoor_url || loData.url;
     
-    if (finalUrl) {
-      return res.status(200).json({ success: true, url: finalUrl });
-    } else {
-      return res.status(200).json({ status: "missing_uri", data: loData });
-    }
+    return res.status(200).json({ success: true, url: finalUrl });
 
   } catch (err) {
+    // This catches the 'asymmetric key' error you just saw
     return res.status(200).json({ status: "runtime_crash", message: err.message });
   }
 }
