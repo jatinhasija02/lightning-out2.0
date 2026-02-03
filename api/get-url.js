@@ -2,16 +2,20 @@ import jwt from 'jsonwebtoken';
 
 export default async function handler(req, res) {
   try {
-    // 1. Clean the key: remove headers/footers, remove all spaces/newlines
-    let rawKey = process.env.SF_PRIVATE_KEY
-      .replace('-----BEGIN RSA PRIVATE KEY-----', '')
-      .replace('-----END RSA PRIVATE KEY-----', '')
-      .replace(/\s/g, ''); // Removes all spaces and hidden characters
+    // 1. Get the raw string from Vercel
+    let rawKey = process.env.SF_PRIVATE_KEY || '';
 
-    // 2. Reconstruct the key with actual \n every 64 characters
+    // 2. Remove any headers, footers, and all whitespace/newlines
+    let cleanKey = rawKey
+      .replace(/-----BEGIN (RSA )?PRIVATE KEY-----/, '')
+      .replace(/-----END (RSA )?PRIVATE KEY-----/, '')
+      .replace(/\s/g, '');
+
+    // 3. Reconstruct the key with the specific "RSA" header and \n every 64 chars
+    // Salesforce and jsonwebtoken are strict about this format
     const formattedKey = 
       "-----BEGIN RSA PRIVATE KEY-----\n" +
-      rawKey.match(/.{1,64}/g).join('\n') +
+      (cleanKey.match(/.{1,64}/g) || []).join('\n') +
       "\n-----END RSA PRIVATE KEY-----\n";
 
     const payload = {
@@ -21,9 +25,10 @@ export default async function handler(req, res) {
       exp: Math.floor(Date.now() / 1000) + 300
     };
 
-    // 3. Sign using our perfectly formatted key
+    // 4. Sign the JWT
     const token = jwt.sign(payload, formattedKey, { algorithm: 'RS256' });
 
+    // 5. Get Salesforce Access Token
     const sfRes = await fetch("https://login.salesforce.com/services/oauth2/token", {
       method: 'POST',
       body: new URLSearchParams({
@@ -35,12 +40,13 @@ export default async function handler(req, res) {
     const data = await sfRes.json();
     if (!sfRes.ok) return res.status(sfRes.status).json({ error: data });
 
+    // 6. Get Lightning Out 2.0 URL
     const loRes = await fetch(`${data.instance_url}/services/oauth2/singleaccess?access_token=${data.access_token}&application_id=${process.env.SF_APP_ID}`);
     const loData = await loRes.json();
 
     res.status(200).json({ url: loData.frontdoor_url });
 
   } catch (err) {
-    res.status(500).json({ error: err.message, stack: err.stack });
+    res.status(500).json({ error: err.message });
   }
 }
