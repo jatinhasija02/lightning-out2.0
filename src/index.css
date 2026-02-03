@@ -1,15 +1,21 @@
-/* Change this to allow full-width content */
+/* Strip all default Vite styles */
+:root {
+  background-color: #1a1a1a; /* Match your dark theme */
+  color: white;
+  margin: 0;
+  padding: 0;
+}
+
 body {
   margin: 0;
-  display: block; /* Changed from flex */
-  min-width: 320px;
+  padding: 0;
+  display: block; /* Removes the flex-centering that squishes the LWC */
   min-height: 100vh;
+  background-color: #1a1a1a;
 }
 
 #root {
-  max-width: 100%; /* Changed from 1280px */
-  margin: 0;       /* Removed auto centering */
-  padding: 0;      /* Removed default padding */
-  width: 100vw;
+  width: 100%;
+  margin: 0;
+  padding: 0;
 }
-
