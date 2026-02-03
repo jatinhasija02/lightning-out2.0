@@ -3,22 +3,17 @@ import jwt from 'jsonwebtoken';
 export default async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
   try {
-    // 1. Force the string to interpret \n as actual newlines
     const rawKey = process.env.SF_PRIVATE_KEY || "";
     const privateKey = rawKey.replace(/\\n/g, '\n');
 
-    // 2. JWT Setup
-    const payload = {
+    const token = jwt.sign({
       iss: process.env.SF_CONSUMER_KEY,
       sub: process.env.SF_USERNAME,
       aud: "https://login.salesforce.com",
       exp: Math.floor(Date.now() / 1000) + 300
-    };
+    }, privateKey, { algorithm: 'RS256' });
 
-    // 3. Sign the token
-    const token = jwt.sign(payload, privateKey, { algorithm: 'RS256' });
-
-    // 4. Get Salesforce Access Token
+    // Step 1: JWT Auth
     const sfRes = await fetch("https://login.salesforce.com/services/oauth2/token", {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -31,15 +26,22 @@ export default async function handler(req, res) {
     const authData = await sfRes.json();
     if (!sfRes.ok) return res.status(200).json({ status: "auth_failed", authData });
 
-    // 5. Get Lightning Out 2.0 URL
-    const loRes = await fetch(`${authData.instance_url}/services/oauth2/singleaccess?access_token=${authData.access_token}&application_id=${process.env.SF_APP_ID}`);
+    // Step 2: Handshake
+    const appId = process.env.SF_APP_ID;
+    const loRes = await fetch(`${authData.instance_url}/services/oauth2/singleaccess?access_token=${authData.access_token}&application_id=${appId}`);
+    
     const loText = await loRes.text();
     
     try {
       const loData = JSON.parse(loText);
+      // If we reach this, the URL is valid!
       return res.status(200).json({ success: true, url: loData.frontdoor_url });
     } catch (e) {
-      return res.status(200).json({ status: "handshake_failed", message: loText });
+      return res.status(200).json({ 
+        status: "handshake_failed", 
+        message: loText,
+        debug_app_id: appId 
+      });
     }
 
   } catch (err) {
