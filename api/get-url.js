@@ -14,7 +14,7 @@ export default async function handler(req, res) {
       exp: Math.floor(Date.now() / 1000) + 300
     }, privateKey, { algorithm: 'RS256' });
 
-    // Step 1: Auth
+    // Step 1: Exchange JWT for Access Token
     const sfRes = await fetch("https://login.salesforce.com/services/oauth2/token", {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     const authData = await sfRes.json();
     if (!sfRes.ok) return res.status(200).json({ status: "auth_failed", authData });
 
-    // Step 2: Handshake
+    // Step 2: Perform the Handshake
     const appId = process.env.SF_APP_ID;
     const loUrl = new URL(`${authData.instance_url}/services/oauth2/singleaccess`);
     loUrl.searchParams.append("application_id", appId);
@@ -40,20 +40,15 @@ export default async function handler(req, res) {
       }
     });
     
-    const loText = await loRes.text();
+    const loData = await loRes.json();
     
-    try {
-      const loData = JSON.parse(loText);
-      // Salesforce sometimes returns 'url' or 'frontdoor_url' depending on the Edge configuration
-      const finalUrl = loData.frontdoor_url || loData.url;
-      
-      if (finalUrl) {
-        return res.status(200).json({ success: true, url: finalUrl });
-      } else {
-        return res.status(200).json({ status: "missing_url", data: loData });
-      }
-    } catch (e) {
-      return res.status(200).json({ status: "handshake_failed", message: loText });
+    // Capture the URI specifically from your debug logs
+    const finalUrl = loData.frontdoor_uri || loData.frontdoor_url || loData.url;
+    
+    if (finalUrl) {
+      return res.status(200).json({ success: true, url: finalUrl });
+    } else {
+      return res.status(200).json({ status: "missing_uri", data: loData });
     }
 
   } catch (err) {
