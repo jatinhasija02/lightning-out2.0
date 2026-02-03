@@ -9,7 +9,7 @@ export default async function handler(req, res) {
         exp: Math.floor(Date.now() / 1000) + 300
     };
 
-    const token = jwt.sign(payload, process.env.SF_PRIVATE_KEY, { algorithm: 'RS256' });
+    const token = jwt.sign(payload, process.env.SF_PRIVATE_KEY.replace(/\\n/g, '\n'), { algorithm: 'RS256' });
 
     // Step A: Get a fresh Login Token
     const sfRes = await fetch("https://login.salesforce.com/services/oauth2/token", {
@@ -27,4 +27,5 @@ export default async function handler(req, res) {
 
     // Send it to your React component
     res.status(200).json({ url: frontdoor_url });
+
 }
