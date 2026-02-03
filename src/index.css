@@ -1,13 +1,13 @@
-body, #root {
-  display: block !important; /* Forces full width */
-  width: 100% !important;
-  margin: 0;
-  padding: 0;
+/* Force the custom element to be visible and take up space */
+c-hello-world-lwc {
+    display: block !important;
+    min-height: 300px !important;
+    width: 100% !important;
+    visibility: visible !important;
 }
 
-lightning-card, .slds-card {
-  --slds-c-card-color-background: transparent !important; /* Removes white background */
-  background-color: transparent !important;
-  border: none !important;
-  color: white !important;
+/* Ensure the SLDS scope container expands */
+.slds-scope {
+    width: 100%;
+    height: 100%;
 }
