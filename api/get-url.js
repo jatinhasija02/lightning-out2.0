@@ -26,21 +26,30 @@ export default async function handler(req, res) {
     const authData = await sfRes.json();
     if (!sfRes.ok) return res.status(200).json({ status: "auth_failed", authData });
 
-    // Step 2: Handshake
+    // Step 2: Handshake - Using direct domain to bypass 'Invalid_Param' redirection issues
     const appId = process.env.SF_APP_ID;
-    const loRes = await fetch(`${authData.instance_url}/services/oauth2/singleaccess?access_token=${authData.access_token}&application_id=${appId}`);
+    const myDomain = "https://algocirrus-b6-dev-ed.develop.my.salesforce.com";
     
+    // Constructing the URL manually to ensure parameter encoding is perfect
+    const loUrl = new URL(`${myDomain}/services/oauth2/singleaccess`);
+    loUrl.searchParams.append("access_token", authData.access_token);
+    loUrl.searchParams.append("application_id", appId);
+
+    const loRes = await fetch(loUrl.toString());
     const loText = await loRes.text();
     
     try {
       const loData = JSON.parse(loText);
-      // If we reach this, the URL is valid!
       return res.status(200).json({ success: true, url: loData.frontdoor_url });
     } catch (e) {
+      // Returning the raw text helps identify if it's a 404 or a specific SF error
       return res.status(200).json({ 
         status: "handshake_failed", 
         message: loText,
-        debug_app_id: appId 
+        debug: {
+          sent_app_id: appId,
+          final_url_attempted: loUrl.origin + loUrl.pathname
+        }
       });
     }
 
