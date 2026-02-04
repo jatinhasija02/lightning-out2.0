@@ -45,12 +45,13 @@ export default async function handler(req, res) {
     const loData = await loRes.json();
     const finalUrl = loData.frontdoor_uri || loData.frontdoor_url || loData.url;
     
-    return res.status(200).json({ success: true, url: finalUrl , authData});
+    return res.status(200).json({ success: true, url: finalUrl , authData: authData});
 
   } catch (err) {
     return res.status(200).json({ status: "runtime_crash", message: err.message });
   }
 }
+
 
 
 
