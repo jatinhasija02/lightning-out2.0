@@ -57,3 +57,4 @@ const LightningOutApp = () => {
     </div>
   );
 };
+export default LightningOutApp;
