@@ -65,7 +65,7 @@ const LightningOutApp = () => {
     startLWC();
   }, []);
 
-  return return (
+  return (
   <div style={{ width: '100%', minHeight: '100vh', background: '#242424', padding: '0' }}>
     {/* Loading Overlay logic stays here */}
     
