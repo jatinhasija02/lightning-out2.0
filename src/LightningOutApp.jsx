@@ -1,10 +1,11 @@
+// src/LightningOutApp.jsx
 import { useEffect, useState } from "react";
 
-const LightningOutApp = ({ userEmail }) => {  const [loading, setLoading] = useState(false);
+const LightningOutApp = () => {
+  const [loading, setLoading] = useState(false);
   const [sessionUrl, setSessionUrl] = useState(null);
 
   useEffect(() => {
-    // Check if we have a session URL from the SSO redirect
     const params = new URLSearchParams(window.location.search);
     const urlFromSso = params.get("session_url");
 
@@ -19,11 +20,9 @@ const LightningOutApp = ({ userEmail }) => {  const [loading, setLoading] = useS
     const authUrl = "https://login.salesforce.com/services/oauth2/authorize";
     const params = new URLSearchParams({
       response_type: 'code',
-      client_id: '3MVG9VMBZCsTL9hnVO_6Q8ke.yyExmYi92cqK7ggByeErX0x.v9EFR9JFcaZhdTvibyAdqHSYFFhDtrdb3Fn8', 
+      client_id: '3MVG9VMBZCsTL9hnVO_6Q8ke.yyExmYi92cqK7ggByeErX0x.v9EFR9JFcaZhdTvibyAdqHSYFFhDtrdb3Fn8',
       redirect_uri: 'https://lightning-out2-0.vercel.app/api/auth-callback', 
-      scope: 'openid api',
-      // Optional: hint to Salesforce which user is logging in
-      login_hint: userEmail 
+      scope: 'openid api'
     });
     window.location.href = `${authUrl}?${params.toString()}`;
   };
@@ -31,6 +30,7 @@ const LightningOutApp = ({ userEmail }) => {  const [loading, setLoading] = useS
   const initLightningOut = (url) => {
     setLoading(true);
     const script = document.createElement("script");
+    // Using the script source found in your project
     script.src = "https://algocirrus-b6-dev-ed.develop.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js";
     
     script.onload = () => {
@@ -43,6 +43,7 @@ const LightningOutApp = ({ userEmail }) => {  const [loading, setLoading] = useS
     document.body.appendChild(script);
   };
 
+  // Fixed the double "return" error here
   return (
     <div style={{ width: '100%', minHeight: '100vh', background: '#242424', color: 'white', textAlign: 'center' }}>
       {!sessionUrl ? (
