@@ -30,6 +30,7 @@ export default async function handler(req, res) {
     });
     
     const authData = await sfRes.json();
+    console.log(authData);
     if (!sfRes.ok) return res.status(200).json({ status: "auth_failed", authData });
 
     const appId = process.env.SF_APP_ID?.trim();
@@ -50,3 +51,4 @@ export default async function handler(req, res) {
     return res.status(200).json({ status: "runtime_crash", message: err.message });
   }
 }
+
