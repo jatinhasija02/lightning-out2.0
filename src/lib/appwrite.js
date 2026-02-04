@@ -1,8 +1,9 @@
+// src/lib/appwrite.js
 import { Client, Account } from 'appwrite';
 
 const client = new Client()
-    .setEndpoint('https://fra.cloud.appwrite.io/v1') // Or your self-hosted URL
-    .setProject('6982e6c500106f42fbe9');            // From Appwrite Console
+    .setEndpoint(import.meta.env.VITE_APPWRITE_ENDPOINT)
+    .setProject(import.meta.env.VITE_APPWRITE_PROJECT_ID);
 
 export const account = new Account(client);
 export { client };
