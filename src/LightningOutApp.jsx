@@ -7,7 +7,7 @@ const LightningOutApp = () => {
   const CLIENT_ID = "3MVG9VMBZCsTL9hnVO_6Q8ke.yyExmYi92cqK7ggByeErX0x.v9EFR9JFcaZhdTvibyAdqHSYFFhDtrdb3Fn8"; // From Connected App
   const APP_ID = "1UsNS0000000CUD0A2"; // From LO 2.0 App Manager
   const INSTANCE_URL = "https://algocirrus-b6-dev-ed.develop.my.salesforce.com";
-  const REDIRECT_URI = window.location.origin; 
+  const REDIRECT_URI = "https://lightning-out2-0.vercel.app"; 
 
   useEffect(() => {
     const initFlow = async () => {
