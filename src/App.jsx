@@ -21,14 +21,15 @@ function App() {
       });
   }, []);
 
-  if (loading) return <div>Checking Session...</div>;
+  if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '100px' }}>Checking Session...</div>;
 
   return (
     <>
       {!user ? (
-        <Login /> // Shows the "Login with Okta" button
+        <Login /> 
       ) : (
-        <LightningOutApp userEmail={user.email} /> // Pass the Okta email to Salesforce
+        /* PASSING THE EMAIL HERE IS CRITICAL */
+        <LightningOutApp userEmail={user.email} /> 
       )}
     </>
   );
