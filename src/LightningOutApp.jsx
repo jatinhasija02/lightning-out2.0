@@ -9,6 +9,7 @@ const LightningOutApp = () => {
       try {
         console.log("LOG [1]: Requesting session from Vercel API...");
         const response = await fetch("/api/get-url");
+         console.log( 'authData-->', result);
         const result = await response.json();
         console.log("LOG [2]: API Result received:", result);
 
