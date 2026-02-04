@@ -20,16 +20,15 @@ const LightningOutApp = () => {
       }
 
       try {
-        // Inside your useEffect in LightningOutApp.jsx
-      const response = await fetch("/api/get-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          accessToken: accessToken, // The token from your URL hash
-          instanceUrl: "https://algocirrus-b6-dev-ed.develop.my.salesforce.com",
-          appId: "1UsNS0000000CUD0A2" 
-        })
-      });
+        const response = await fetch("/api/get-url", {
+          method: "POST", // Must be POST to match the new handler
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            accessToken: accessToken, // This is the access_token from your browser URL
+            instanceUrl: INSTANCE_URL,
+            appId: APP_ID 
+          })
+        });
         const { url } = await response.json();
 
         const script = document.createElement("script");
