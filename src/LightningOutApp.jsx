@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
-const LightningOutApp = () => {
-  const [loading, setLoading] = useState(false);
+const LightningOutApp = ({ userEmail }) => {  const [loading, setLoading] = useState(false);
   const [sessionUrl, setSessionUrl] = useState(null);
 
   useEffect(() => {
@@ -20,9 +19,11 @@ const LightningOutApp = () => {
     const authUrl = "https://login.salesforce.com/services/oauth2/authorize";
     const params = new URLSearchParams({
       response_type: 'code',
-      client_id: '3MVG9VMBZCsTL9hnVO_6Q8ke.yyExmYi92cqK7ggByeErX0x.v9EFR9JFcaZhdTvibyAdqHSYFFhDtrdb3Fn8', // Must match Vercel Env
+      client_id: '3MVG9VMBZCsTL9hnVO_6Q8ke.yyExmYi92cqK7ggByeErX0x.v9EFR9JFcaZhdTvibyAdqHSYFFhDtrdb3Fn8', 
       redirect_uri: 'https://lightning-out2-0.vercel.app/api/auth-callback', 
-      scope: 'openid api'
+      scope: 'openid api',
+      // Optional: hint to Salesforce which user is logging in
+      login_hint: userEmail 
     });
     window.location.href = `${authUrl}?${params.toString()}`;
   };
