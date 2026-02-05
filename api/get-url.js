@@ -1,3 +1,4 @@
+// api/get-url.js
 import jwt from 'jsonwebtoken';
 
 export default async function handler(req, res) {
@@ -8,8 +9,14 @@ export default async function handler(req, res) {
 
     // Remove any hidden spaces from env variables
     const consumerKey = process.env.SF_CONSUMER_KEY?.trim();
-    const username = process.env.SF_USERNAME?.trim();
     
+    // CHANGE: Check query param first, then fallback to env var
+    const username = req.query.username?.trim() || process.env.SF_USERNAME?.trim();
+    
+    if (!username) {
+        throw new Error("No username provided in UI or Environment variables.");
+    }
+
     // Check your URL: use 'test' for Sandbox, 'login' for Production/Dev Edition
     const audience = "https://login.salesforce.com"; 
 
@@ -51,7 +58,3 @@ export default async function handler(req, res) {
     return res.status(200).json({ status: "runtime_crash", message: err.message });
   }
 }
-
-
-
-
