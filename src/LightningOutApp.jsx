@@ -1,62 +1,79 @@
 // src/LightningOutApp.jsx
 import { useState, useEffect } from "react";
 
+// The main application component which handles the login and connection to Salesforce
 const LightningOutApp = () => {
-  // Input state
+  // Username input is stored here
   const [usernameInput, setUsernameInput] = useState("");
+  
+  // Whether the application has started (logged in)
   const [isStarted, setIsStarted] = useState(false);
-
-  // App logic state
+  
+  // Whether the application is currently loading
   const [loading, setLoading] = useState(true);
+  
+  // The current status of the application is stored here
   const [logStatus, setLogStatus] = useState("Initializing...");
 
   // 1. On Mount: Check if we have a saved user
   useEffect(() => {
+    // Check if we have a saved user in localStorage
     const savedUser = localStorage.getItem("sf_debug_user");
     if (savedUser) {
       console.log("Found saved user:", savedUser);
+      // Set the username input to the saved user
       setUsernameInput(savedUser);
       // Auto-connect with the saved user
       connectToSalesforce(savedUser);
     }
   }, []);
 
-  // 2. The Reusable Connection Logic
+  // 2. Connects to Salesforce and sets the Lightning Out component
+  
   const connectToSalesforce = async (userToConnect) => {
+    // Check if the user is provided
     if (!userToConnect) return;
 
     setIsStarted(true); // Switch UI immediately
+
     setLogStatus(`Restoring session for ${userToConnect}...`);
 
     try {
+      // Request the session URL from the Vercel API
       console.log("LOG [1]: Requesting session from Vercel API for:", userToConnect);
-      
       const response = await fetch(`/api/get-url?username=${encodeURIComponent(userToConnect)}`);
       const result = await response.json();
       console.log("LOG [2]: API Result received:", result);
 
+      // Check if the result is successful
       if (result.success && result.url) {
         // SUCCESS: Save the user to localStorage so it persists on refresh
         localStorage.setItem("sf_debug_user", userToConnect);
 
+        // Set the log status to "Session active. Loading Salesforce scripts..."
         setLogStatus("Session active. Loading Salesforce scripts...");
-        
+
+        // Create a script tag to load the Lightning Out script
         const script = document.createElement("script");
         // Ensure this URL matches your environment (Sandbox vs Prod)
         script.src = "https://algocirrus-b6-dev-ed.develop.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js";
         
+        // Add an event listener to the script tag
         script.onload = () => {
           console.log("LOG [3]: index.iife.prod.js loaded.");
           const loApp = document.querySelector("lightning-out-application");
           
+          // Check if the Lightning Out application is found in the DOM
           if (loApp) {
             console.log("LOG [4]: Attaching handshake...");
             
+            // Add an event listener to the Lightning Out application
             loApp.addEventListener("ready", () => {
               console.log("LOG [5]: SUCCESS! 'ready' event captured.");
               setLoading(false);
             });
 
+            // Set the frontdoor-url attribute of the Lightning Out application
             loApp.setAttribute("frontdoor-url", result.url);
 
             // FAILSAFE
@@ -73,11 +90,13 @@ const LightningOutApp = () => {
           }
         };
 
+        // Add an error event listener to the script tag
         script.onerror = (err) => {
           console.error("LOG [ERR]: Script failed to load.", err);
           setLogStatus("Network Error: Could not load Salesforce script.");
         };
 
+        // Append the script tag to the document body
         document.body.appendChild(script);
       } else {
         console.error("LOG [ERR]: API failure status.", result);
@@ -91,6 +110,7 @@ const LightningOutApp = () => {
 
   // 3. Handle Form Submit
   const handleStart = (e) => {
+    // Prevent the default form submission behavior
     e.preventDefault();
     if (!usernameInput) return alert("Please enter a username");
     connectToSalesforce(usernameInput);
@@ -187,3 +207,4 @@ const LightningOutApp = () => {
 };
 
 export default LightningOutApp;
+
