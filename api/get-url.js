@@ -1,30 +1,48 @@
-export default async function handler(req, res) {
-  const { code } = req.query; // Salesforce sends this code after the user logs in
-  
-  if (!code) return res.status(400).send("No authorization code provided.");
+// api/get-url.js
+import jwt from 'jsonwebtoken';
 
+export default async function handler(req, res) {
+  res.setHeader('Content-Type', 'application/json');
   try {
-    const audience = "https://login.salesforce.com";
+    const rawKey = process.env.SF_PRIVATE_KEY || "";
+    const privateKey = rawKey.split(String.raw`\n`).join('\n');
+
+    // Remove any hidden spaces from env variables
+    const consumerKey = process.env.SF_CONSUMER_KEY?.trim();
     
-    // 1. Swap the code for an Access Token specific to the user
-    const tokenResponse = await fetch(`${audience}/services/oauth2/token`, {
+    // CHANGE: Check query param first, then fallback to env var
+    const username = req.query.username?.trim() || process.env.SF_USERNAME?.trim();
+    
+    if (!username) {
+        throw new Error("No username provided in UI or Environment variables.");
+    }
+
+    // Check your URL: use 'test' for Sandbox, 'login' for Production/Dev Edition
+    const audience = "https://login.salesforce.com"; 
+
+    const token = jwt.sign({
+      iss: consumerKey,
+      sub: username,
+      aud: audience,
+      exp: Math.floor(Date.now() / 1000) + 300
+    }, privateKey, { algorithm: 'RS256' });
+
+    const sfRes = await fetch(`${audience}/services/oauth2/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code: code,
-        client_id: process.env.SF_CONSUMER_KEY,
-        client_secret: process.env.SF_CLIENT_SECRET, // Required for this flow
-        redirect_uri: process.env.SF_CALLBACK_URL
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion: token
       })
     });
+    
+    const authData = await sfRes.json();
+    console.log( 'authData-->', authData);
+    if (!sfRes.ok) return res.status(200).json({ status: "auth_failed", authData });
 
-    const authData = await tokenResponse.json();
-    if (!tokenResponse.ok) throw new Error(authData.error_description);
-
-    // 2. Get the secure handshake URL for Lightning Out
+    const appId = process.env.SF_APP_ID?.trim();
     const loUrl = new URL(`${authData.instance_url}/services/oauth2/singleaccess`);
-    loUrl.searchParams.append("application_id", process.env.SF_APP_ID);
+    loUrl.searchParams.append("application_id", appId);
 
     const loRes = await fetch(loUrl.toString(), {
       method: 'GET',
@@ -33,11 +51,10 @@ export default async function handler(req, res) {
     
     const loData = await loRes.json();
     const finalUrl = loData.frontdoor_uri || loData.frontdoor_url || loData.url;
-
-    // 3. Redirect user back to the home page with the session URL
-    res.redirect(`/?session_url=${encodeURIComponent(finalUrl)}`);
+    
+    return res.status(200).json({ success: true, url: finalUrl , authData: authData});
 
   } catch (err) {
-    res.status(500).send("SSO Handshake Failed: " + err.message);
+    return res.status(200).json({ status: "runtime_crash", message: err.message });
   }
 }
