@@ -1,4 +1,3 @@
-// api/get-url.js
 import jwt from 'jsonwebtoken';
 
 // This function is an API endpoint that will be called by the frontend application.
@@ -71,6 +70,18 @@ export default async function handler(req, res) {
       headers: { 'Authorization': `bearer ${authData.access_token}` }
     });
 
+    // --- LOGIC TO PREVENT JSON PARSE ERROR ---
+    const contentType = loRes.headers.get("content-type");
+    if (!loRes.ok || !contentType || !contentType.includes("application/json")) {
+      // If Salesforce sends a string like "Bad_OAuth_Token", capture it as text
+      const errorText = await loRes.text(); 
+      return res.status(200).json({ 
+        success: false, 
+        status: "auth_failed", 
+        message: `Salesforce error: ${errorText}` 
+      });
+    }
+
     // Get the JSON response from the Lightning Out API
     const loData = await loRes.json();
     // The final URL is the URL returned by the Lightning Out API
@@ -81,7 +92,7 @@ export default async function handler(req, res) {
 
   } catch (err) {
     // If there is an error, return an error to the frontend application
+    // This will now only trigger for actual runtime crashes, not Salesforce errors
     return res.status(200).json({ status: "runtime_crash", message: err.message });
   }
 }
-
