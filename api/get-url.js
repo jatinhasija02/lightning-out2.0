@@ -7,18 +7,14 @@ export default async function handler(req, res) {
     const rawKey = process.env.SF_PRIVATE_KEY || "";
     const privateKey = rawKey.split(String.raw`\n`).join('\n');
 
-    // Remove any hidden spaces from env variables
     const consumerKey = process.env.SF_CONSUMER_KEY?.trim();
-    
-    // CHANGE: Check query param first, then fallback to env var
     const username = req.query.username?.trim() || process.env.SF_USERNAME?.trim();
-    
-    if (!username) {
-        throw new Error("No username provided in UI or Environment variables.");
-    }
+    const appId = process.env.SF_APP_ID?.trim(); // Get App ID from Env
 
-    // Check your URL: use 'test' for Sandbox, 'login' for Production/Dev Edition
-    const audience = "https://login.salesforce.com"; 
+    if (!username) throw new Error("No username provided.");
+    if (!appId) throw new Error("SF_APP_ID is missing in Environment variables.");
+
+    const audience = "https://login.salesforce.com"; // Use 'test.salesforce.com' for Sandboxes
 
     const token = jwt.sign({
       iss: consumerKey,
@@ -37,10 +33,9 @@ export default async function handler(req, res) {
     });
     
     const authData = await sfRes.json();
-    console.log( 'authData-->', authData);
     if (!sfRes.ok) return res.status(200).json({ status: "auth_failed", authData });
 
-    const appId = process.env.SF_APP_ID?.trim();
+    // Generate Frontdoor URL
     const loUrl = new URL(`${authData.instance_url}/services/oauth2/singleaccess`);
     loUrl.searchParams.append("application_id", appId);
 
@@ -52,9 +47,15 @@ export default async function handler(req, res) {
     const loData = await loRes.json();
     const finalUrl = loData.frontdoor_uri || loData.frontdoor_url || loData.url;
     
-    return res.status(200).json({ success: true, url: finalUrl , authData: authData});
+    // CHANGE: Return appId and instance_url so frontend can use them dynamically
+    return res.status(200).json({ 
+        success: true, 
+        url: finalUrl, 
+        appId: appId, 
+        instanceUrl: authData.instance_url 
+    });
 
   } catch (err) {
-    return res.status(200).json({ status: "runtime_crash", message: err.message });
+    return res.status(500).json({ status: "error", message: err.message });
   }
 }
