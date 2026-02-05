@@ -1,4 +1,3 @@
-// src/LightningOutApp.jsx
 import { useState, useEffect } from "react";
 
 const LightningOutApp = () => {
