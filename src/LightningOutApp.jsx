@@ -1,210 +1,114 @@
 // src/LightningOutApp.jsx
 import { useState, useEffect } from "react";
 
-// The main application component which handles the login and connection to Salesforce
 const LightningOutApp = () => {
-  // Username input is stored here
-  const [usernameInput, setUsernameInput] = useState("");
-  
-  // Whether the application has started (logged in)
-  const [isStarted, setIsStarted] = useState(false);
-  
-  // Whether the application is currently loading
-  const [loading, setLoading] = useState(true);
-  
-  // The current status of the application is stored here
-  const [logStatus, setLogStatus] = useState("Initializing...");
+  const [loading, setLoading] = useState(false);
+  const [logStatus, setLogStatus] = useState("Ready to connect.");
+  const [isConnected, setIsConnected] = useState(false);
 
-  // 1. On Mount: Check if we have a saved user
+  // Configuration
+  const CONNECTED_APP_CLIENT_ID = import.meta.env.VITE_SF_CONSUMER_KEY || "YOUR_CONSUMER_KEY_HERE"; // Or hardcode for testing
+  // Use test.salesforce.com for sandbox, login.salesforce.com for prod
+  const SALESFORCE_LOGIN_URL = "https://login.salesforce.com"; 
+
   useEffect(() => {
-    // Check if we have a saved user in localStorage
-    const savedUser = localStorage.getItem("sf_debug_user");
-    if (savedUser) {
-      console.log("Found saved user:", savedUser);
-      // Set the username input to the saved user
-      setUsernameInput(savedUser);
-      // Auto-connect with the saved user
-      connectToSalesforce(savedUser);
+    // 1. Check if we are returning from Salesforce with a code
+    const params = new URLSearchParams(window.location.search);
+    const authCode = params.get("code");
+
+    if (authCode) {
+      // Clear the code from the URL to prevent re-execution on refresh
+      window.history.replaceState({}, document.title, window.location.pathname);
+      handleAuthCode(authCode);
     }
   }, []);
 
-  // 2. Connects to Salesforce and sets the Lightning Out component
-  
-  const connectToSalesforce = async (userToConnect) => {
-    // Check if the user is provided
-    if (!userToConnect) return;
+  const handleLogin = () => {
+    // 2. Redirect user to Salesforce to authorize
+    const redirectUri = window.location.origin; // Redirect back to this same page
+    const authUrl = `${SALESFORCE_LOGIN_URL}/services/oauth2/authorize?` +
+      `response_type=code&` +
+      `client_id=${CONNECTED_APP_CLIENT_ID}&` +
+      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+      `scope=full refresh_token`;
 
-    setIsStarted(true); // Switch UI immediately
+    console.log("Redirecting to:", authUrl);
+    window.location.href = authUrl;
+  };
 
-    setLogStatus(`Restoring session for ${userToConnect}...`);
+  const handleAuthCode = async (code) => {
+    setLoading(true);
+    setLogStatus("Exchanging code for Lightning Access...");
 
     try {
-      // Request the session URL from the Vercel API
-      console.log("LOG [1]: Requesting session from Vercel API for:", userToConnect);
-      const response = await fetch(`/api/get-url?username=${encodeURIComponent(userToConnect)}`);
+      // 3. Send the code to our backend to get the real frontdoor URL
+      // We pass the redirect_uri so the backend can verify it matches
+      const redirectUri = window.location.origin;
+      const response = await fetch(`/api/get-url?code=${code}&redirect_uri=${encodeURIComponent(redirectUri)}`);
       const result = await response.json();
-      console.log("LOG [2]: API Result received:", result);
 
-      // Check if the result is successful
       if (result.success && result.url) {
-        // SUCCESS: Save the user to localStorage so it persists on refresh
-        localStorage.setItem("sf_debug_user", userToConnect);
-
-        // Set the log status to "Session active. Loading Salesforce scripts..."
-        setLogStatus("Session active. Loading Salesforce scripts...");
-
-        // Create a script tag to load the Lightning Out script
-        const script = document.createElement("script");
-        // Ensure this URL matches your environment (Sandbox vs Prod)
-        script.src = "https://algocirrus-b6-dev-ed.develop.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js";
-        
-        // Add an event listener to the script tag
-        script.onload = () => {
-          console.log("LOG [3]: index.iife.prod.js loaded.");
-          const loApp = document.querySelector("lightning-out-application");
-          
-          // Check if the Lightning Out application is found in the DOM
-          if (loApp) {
-            console.log("LOG [4]: Attaching handshake...");
-            
-            // Add an event listener to the Lightning Out application
-            loApp.addEventListener("ready", () => {
-              console.log("LOG [5]: SUCCESS! 'ready' event captured.");
-              setLoading(false);
-            });
-
-            // Set the frontdoor-url attribute of the Lightning Out application
-            loApp.setAttribute("frontdoor-url", result.url);
-
-            // FAILSAFE
-            setTimeout(() => {
-              const component = document.querySelector("c-hello-world-lwc");
-              if (component) {
-                console.log("LOG [7]: Failsafe triggered. Hiding overlay.");
-                setLoading(false);
-              }
-            }, 3000); 
-
-          } else {
-            setLogStatus("Error: <lightning-out-application> not found in DOM.");
-          }
-        };
-
-        // Add an error event listener to the script tag
-        script.onerror = (err) => {
-          console.error("LOG [ERR]: Script failed to load.", err);
-          setLogStatus("Network Error: Could not load Salesforce script.");
-        };
-
-        // Append the script tag to the document body
-        document.body.appendChild(script);
+        setLogStatus("Session established. Loading Lightning Out...");
+        setIsConnected(true);
+        loadLightningOut(result.url);
       } else {
-        console.error("LOG [ERR]: API failure status.", result);
-        setLogStatus(`API Error: ${result.authData?.error_description || result.status || 'Unknown'}`);
+        console.error("API Error:", result);
+        setLogStatus(`Error: ${result.message || JSON.stringify(result)}`);
+        setLoading(false);
       }
     } catch (err) {
-      console.error("LOG [ERR]: Runtime crash.", err);
-      setLogStatus("Crash: " + err.message);
+      console.error("Runtime Error:", err);
+      setLogStatus(`Crash: ${err.message}`);
+      setLoading(false);
     }
   };
 
-  // 3. Handle Form Submit
-  const handleStart = (e) => {
-    // Prevent the default form submission behavior
-    e.preventDefault();
-    if (!usernameInput) return alert("Please enter a username");
-    connectToSalesforce(usernameInput);
+  const loadLightningOut = (frontdoorUrl) => {
+    // 4. Standard Lightning Out loading logic
+    const script = document.createElement("script");
+    // NOTE: This URL should match your org instance (e.g. your-domain.my.salesforce.com)
+    script.src = "https://algocirrus-b6-dev-ed.develop.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js";
+    
+    script.onload = () => {
+      const loApp = document.querySelector("lightning-out-application");
+      if (loApp) {
+        loApp.addEventListener("ready", () => {
+          console.log("Lightning Out Ready!");
+          setLoading(false);
+        });
+        loApp.setAttribute("frontdoor-url", frontdoorUrl);
+      }
+    };
+    document.body.appendChild(script);
   };
 
-  // 4. Handle Disconnect (Logout)
-  const handleDisconnect = () => {
-    localStorage.removeItem("sf_debug_user"); // Clear storage
-    setIsStarted(false); // Go back to login screen
-    setUsernameInput(""); // Clear input
-    setLoading(true); // Reset loading state
-    window.location.reload(); // Force reload to clear any Salesforce scripts/sessions
-  };
-
-  // RENDER: Login Screen
-  if (!isStarted) {
-    return (
-      <div style={{ 
-        height: '100vh', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        justifyContent: 'center', 
-        alignItems: 'center',
-        background: '#242424',
-        color: 'white',
-        gap: '20px'
-      }}>
-        <h2>Lightning Out Debugger</h2>
-        <form onSubmit={handleStart} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <input 
-            type="text" 
-            placeholder="Enter Salesforce Username" 
-            value={usernameInput}
-            onChange={(e) => setUsernameInput(e.target.value)}
-            style={{ padding: '10px', width: '300px', borderRadius: '4px', border: 'none' }}
-          />
-          <button 
-            type="submit" 
-            style={{ padding: '10px', cursor: 'pointer', backgroundColor: '#0070d2', color: 'white', border: 'none', borderRadius: '4px' }}
-          >
-            Connect & Load LWC
-          </button>
-        </form>
-      </div>
-    );
-  }
-
-  // RENDER: Connected Screen (Lightning Out)
   return (
-    <div style={{ width: '100%', minHeight: '100vh', background: '#242424', padding: '0', position: 'relative' }}>
-      
-      {/* Top Bar with Disconnect Button */}
-      <div style={{
-        position: 'absolute', top: '10px', right: '10px', zIndex: 100
-      }}>
-        <button 
-          onClick={handleDisconnect}
-          style={{
-            padding: '8px 16px', backgroundColor: '#c23934', color: 'white', 
-            border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'
-          }}
-        >
-          Disconnect ({usernameInput})
-        </button>
-      </div>
-
-      {/* Loading Overlay */}
-      {loading && (
-        <div style={{
-          position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-          background: 'rgba(0,0,0,0.8)', color: 'white', display: 'flex', 
-          justifyContent: 'center', alignItems: 'center', zIndex: 50
-        }}>
-           <p>{logStatus}</p>
+    <div style={{ height: '100vh', background: '#242424', color: 'white', padding: '20px' }}>
+      {!isConnected ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '100px', gap: '20px' }}>
+          <h2>Lightning Out 2.0 Debugger</h2>
+          <p>{logStatus}</p>
+          <button 
+            onClick={handleLogin}
+            disabled={loading}
+            style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', backgroundColor: '#0070d2', color: 'white', border: 'none', borderRadius: '4px' }}
+          >
+            {loading ? "Connecting..." : "Log in with Salesforce"}
+          </button>
+        </div>
+      ) : (
+        <div style={{ width: '100%', height: '100%' }}>
+           {/* Top Bar */}
+           <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 100 }}>
+             <button onClick={() => window.location.reload()} style={{ padding: '8px', cursor: 'pointer' }}>Disconnect</button>
+           </div>
+           {/* Lightning Out Container */}
+           <lightning-out-application components="c-hello-world-lwc" app-id="1UsNS0000000CUD0A2"></lightning-out-application>
+           <div className="slds-scope"><c-hello-world-lwc></c-hello-world-lwc></div>
         </div>
       )}
-
-      <div style={{ 
-        opacity: loading ? 0 : 1, 
-        width: '100%',
-        backgroundColor: 'transparent' 
-      }}>
-        <lightning-out-application
-          components="c-hello-world-lwc"
-          app-id="1UsNS0000000CUD0A2"
-        ></lightning-out-application>
-
-        <div className="slds-scope">
-          <c-hello-world-lwc></c-hello-world-lwc>
-        </div>
-      </div>
     </div>
   );
 };
 
 export default LightningOutApp;
-
