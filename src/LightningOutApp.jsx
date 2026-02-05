@@ -1,5 +1,5 @@
 // src/LightningOutApp.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const LightningOutApp = () => {
   // Input state
@@ -10,27 +10,39 @@ const LightningOutApp = () => {
   const [loading, setLoading] = useState(true);
   const [logStatus, setLogStatus] = useState("Initializing...");
 
-  // This function triggers when you click the button
-  const handleStart = async (e) => {
-    e.preventDefault();
-    if (!usernameInput) return alert("Please enter a username");
+  // 1. On Mount: Check if we have a saved user
+  useEffect(() => {
+    const savedUser = localStorage.getItem("sf_debug_user");
+    if (savedUser) {
+      console.log("Found saved user:", savedUser);
+      setUsernameInput(savedUser);
+      // Auto-connect with the saved user
+      connectToSalesforce(savedUser);
+    }
+  }, []);
 
-    setIsStarted(true); // Switches UI to the Lightning Out view
-    setLogStatus("Requesting session...");
+  // 2. The Reusable Connection Logic
+  const connectToSalesforce = async (userToConnect) => {
+    if (!userToConnect) return;
+
+    setIsStarted(true); // Switch UI immediately
+    setLogStatus(`Restoring session for ${userToConnect}...`);
 
     try {
-      console.log("LOG [1]: Requesting session from Vercel API for:", usernameInput);
+      console.log("LOG [1]: Requesting session from Vercel API for:", userToConnect);
       
-      // CHANGE: Pass username as query param
-      const response = await fetch(`/api/get-url?username=${encodeURIComponent(usernameInput)}`);
+      const response = await fetch(`/api/get-url?username=${encodeURIComponent(userToConnect)}`);
       const result = await response.json();
       console.log("LOG [2]: API Result received:", result);
 
       if (result.success && result.url) {
+        // SUCCESS: Save the user to localStorage so it persists on refresh
+        localStorage.setItem("sf_debug_user", userToConnect);
+
         setLogStatus("Session active. Loading Salesforce scripts...");
         
         const script = document.createElement("script");
-        // Ensure this URL is correct for your environment (Sandbox vs Prod)
+        // Ensure this URL matches your environment (Sandbox vs Prod)
         script.src = "https://algocirrus-b6-dev-ed.develop.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js";
         
         script.onload = () => {
@@ -77,7 +89,23 @@ const LightningOutApp = () => {
     }
   };
 
-  // 1. If not started, show the Username Input Form
+  // 3. Handle Form Submit
+  const handleStart = (e) => {
+    e.preventDefault();
+    if (!usernameInput) return alert("Please enter a username");
+    connectToSalesforce(usernameInput);
+  };
+
+  // 4. Handle Disconnect (Logout)
+  const handleDisconnect = () => {
+    localStorage.removeItem("sf_debug_user"); // Clear storage
+    setIsStarted(false); // Go back to login screen
+    setUsernameInput(""); // Clear input
+    setLoading(true); // Reset loading state
+    window.location.reload(); // Force reload to clear any Salesforce scripts/sessions
+  };
+
+  // RENDER: Login Screen
   if (!isStarted) {
     return (
       <div style={{ 
@@ -110,10 +138,25 @@ const LightningOutApp = () => {
     );
   }
 
-  // 2. If started, show the Lightning Out Container (and loading overlay)
+  // RENDER: Connected Screen (Lightning Out)
   return (
     <div style={{ width: '100%', minHeight: '100vh', background: '#242424', padding: '0', position: 'relative' }}>
       
+      {/* Top Bar with Disconnect Button */}
+      <div style={{
+        position: 'absolute', top: '10px', right: '10px', zIndex: 100
+      }}>
+        <button 
+          onClick={handleDisconnect}
+          style={{
+            padding: '8px 16px', backgroundColor: '#c23934', color: 'white', 
+            border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'
+          }}
+        >
+          Disconnect ({usernameInput})
+        </button>
+      </div>
+
       {/* Loading Overlay */}
       {loading && (
         <div style={{
@@ -130,7 +173,6 @@ const LightningOutApp = () => {
         width: '100%',
         backgroundColor: 'transparent' 
       }}>
-        {/* The Component Wrapper */}
         <lightning-out-application
           components="c-hello-world-lwc"
           app-id="1UsNS0000000CUD0A2"
