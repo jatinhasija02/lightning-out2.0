@@ -1,26 +1,20 @@
-/**
- * SERVERLESS FUNCTION: Salesforce Authentication Handler
- * -----------------------------------------------------
- * This API acts as a secure bridge between your React App and Salesforce.
- * * CORE RESPONSIBILITY:
- * 1. Accept a 'username' from the frontend.
- * 2. Sign a JWT (JSON Web Token) using a secure Private Key stored on the server.
- * 3. Exchange that JWT for a Salesforce Access Token (OAuth 2.0 JWT Bearer Flow).
- * 4. Generate a "Frontdoor URL" that allows the frontend to load Salesforce components 
- * without asking the user to log in again.
-*/
-
+// api/get-url.js
 import jwt from 'jsonwebtoken';
 
 // This function is an API endpoint that will be called by the frontend application.
 // It is responsible for generating a JWT token for the frontend to use when making requests to Salesforce.
 export default async function handler(req, res) {
+  // Set the response header to JSON
   res.setHeader('Content-Type', 'application/json');
+
   try {
     // Get the private key from the environment variables
     const rawKey = process.env.SF_PRIVATE_KEY || "";
+    // Remove any hidden spaces from the private key
     const privateKey = rawKey.split(String.raw`\n`).join('\n');
 
+    // Get the consumer key from the environment variables
+    // Remove any hidden spaces from the consumer key
     const consumerKey = process.env.SF_CONSUMER_KEY?.trim();
 
     // Check if the username is provided in the query parameters
@@ -51,13 +45,17 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
+        // The grant type is JWT Bearer
         grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        // The assertion is the JWT token
         assertion: token
       })
     });
 
     // Get the JSON response from the Salesforce instance
     const authData = await sfRes.json();
+
+    // If the request to the Salesforce instance was not successful, return an error
     if (!sfRes.ok) return res.status(200).json({ status: "auth_failed", authData });
 
     // Get the application ID from the environment variables
@@ -67,9 +65,10 @@ export default async function handler(req, res) {
     const loUrl = new URL(`${authData.instance_url}/services/oauth2/singleaccess`);
     loUrl.searchParams.append("application_id", appId);
 
+    // Make a request to the Lightning Out API
     const loRes = await fetch(loUrl.toString(), {
       method: 'GET',
-      headers: { 'Authorization': `Bearer ${authData.access_token}` }
+      headers: { 'Authorization': `bearer ${authData.access_token}` }
     });
 
     // Get the JSON response from the Lightning Out API
