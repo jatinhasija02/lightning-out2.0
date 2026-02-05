@@ -1,5 +1,5 @@
 // src/LightningOutApp.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const LightningOutApp = () => {
   // UI State
@@ -10,31 +10,48 @@ const LightningOutApp = () => {
   const [loading, setLoading] = useState(false);
   const [logStatus, setLogStatus] = useState("Waiting for user input...");
 
-  const startLWC = async () => {
-    if (!username) {
+  // 1. NEW: Check Local Storage on Mount
+  useEffect(() => {
+    const savedUser = localStorage.getItem("sf_username");
+    if (savedUser) {
+      console.log("Found saved user:", savedUser);
+      setUsername(savedUser);
+      // Automatically connect using the saved user
+      startLWC(savedUser);
+    }
+  }, []);
+
+  // 2. Updated startLWC to accept an optional argument (for auto-login)
+  const startLWC = async (userOverride) => {
+    // If called by button click, userOverride is an event, so we use state.
+    // If called by useEffect, userOverride is a string, so we use that.
+    const userToUse = typeof userOverride === "string" ? userOverride : username;
+
+    if (!userToUse) {
       alert("Please enter Salesforce username");
       return;
     }
 
     setStarted(true);
     setLoading(true);
-    setLogStatus(`Connecting as ${username}...`);
+    setLogStatus(`Connecting as ${userToUse}...`);
 
     try {
-      console.log("LOG [1]: Requesting session for:", username);
+      console.log("LOG [1]: Requesting session for:", userToUse);
 
-      // 1. Fetch the Frontdoor URL from your Vercel API
       const response = await fetch(
-        `/api/get-url?username=${encodeURIComponent(username)}`
+        `/api/get-url?username=${encodeURIComponent(userToUse)}`
       );
 
       const result = await response.json();
       console.log("LOG [2]: API Result received:", result);
 
       if (result.success && result.url) {
+        // 3. NEW: Save to Local Storage on Success
+        localStorage.setItem("sf_username", userToUse);
+        
         setLogStatus("Session active. Loading Salesforce scripts...");
 
-        // 2. Create and inject the Lightning Out 2.0 script
         const script = document.createElement("script");
         // Ensure this URL matches your instance (Sandbox vs Prod)
         script.src = "https://algocirrus-b6-dev-ed.develop.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js";
@@ -47,16 +64,14 @@ const LightningOutApp = () => {
           if (loApp) {
             console.log("LOG [4]: Attaching frontdoor URL");
 
-            // 3. Listen for the 'ready' event
             loApp.addEventListener("ready", () => {
               console.log("LOG [5]: Lightning Out ready");
               setLoading(false);
             });
 
-            // 4. Set the frontdoor URL to start the handshake
             loApp.setAttribute("frontdoor-url", result.url);
 
-            // Failsafe: Sometimes 'ready' fires too early or late
+            // Failsafe
             setTimeout(() => {
               const component = document.querySelector("c-hello-world-lwc");
               if (component) {
@@ -76,12 +91,24 @@ const LightningOutApp = () => {
         console.error("Auth Failed:", result);
         setLogStatus(`Authentication failed: ${result.error || result.message || "Unknown Error"}`);
         setLoading(false);
+        // Optional: Clear invalid user from storage if auth fails
+        // localStorage.removeItem("sf_username"); 
       }
     } catch (err) {
       console.error(err);
       setLogStatus("Runtime error: " + err.message);
       setLoading(false);
     }
+  };
+
+  // 4. NEW: Handle Disconnect
+  const handleDisconnect = () => {
+    localStorage.removeItem("sf_username"); // Clear storage
+    setStarted(false);
+    setUsername("");
+    setLoading(false);
+    // Reload to clear Lightning Out scripts/session from memory
+    window.location.reload();
   };
 
   /* ================= UI ================= */
@@ -109,6 +136,17 @@ const LightningOutApp = () => {
 
   return (
     <div style={{ width: "100%", minHeight: "100vh", background: "#242424", position: "relative" }}>
+      
+      {/* Disconnect Button */}
+      <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 100 }}>
+        <button 
+          onClick={handleDisconnect}
+          style={{ padding: '8px 16px', backgroundColor: '#c23934', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+        >
+          Disconnect ({username})
+        </button>
+      </div>
+
       {loading && (
         <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.8)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
           <p>{logStatus}</p>
@@ -116,7 +154,6 @@ const LightningOutApp = () => {
       )}
 
       <div style={{ opacity: loading ? 0 : 1 }}>
-        {/* Using your specific App ID and Component Name */}
         <lightning-out-application
           components="c-hello-world-lwc"
           app-id="1UsNS0000000CUD0A2"
