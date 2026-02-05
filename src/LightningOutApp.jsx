@@ -1,4 +1,3 @@
-// src/LightningOutApp.jsx
 import { useState, useEffect } from "react";
 
 // The main application component which handles the login and connection to Salesforce
@@ -29,13 +28,11 @@ const LightningOutApp = () => {
   }, []);
 
   // 2. Connects to Salesforce and sets the Lightning Out component
-  
   const connectToSalesforce = async (userToConnect) => {
     // Check if the user is provided
     if (!userToConnect) return;
 
     setIsStarted(true); // Switch UI immediately
-
     setLogStatus(`Restoring session for ${userToConnect}...`);
 
     try {
@@ -100,7 +97,9 @@ const LightningOutApp = () => {
         document.body.appendChild(script);
       } else {
         console.error("LOG [ERR]: API failure status.", result);
-        setLogStatus(`API Error: ${result.authData?.error_description || result.status || 'Unknown'}`);
+        // Handle both standard error objects and our custom crash/failure messages
+        const errorMessage = result.message || result.authData?.error_description || result.status || 'Unknown Error';
+        setLogStatus(`API Error: ${errorMessage}`);
       }
     } catch (err) {
       console.error("LOG [ERR]: Runtime crash.", err);
@@ -184,7 +183,7 @@ const LightningOutApp = () => {
           background: 'rgba(0,0,0,0.8)', color: 'white', display: 'flex', 
           justifyContent: 'center', alignItems: 'center', zIndex: 50
         }}>
-           <p>{logStatus}</p>
+           <p style={{ textAlign: 'center', padding: '0 20px' }}>{logStatus}</p>
         </div>
       )}
 
@@ -207,4 +206,3 @@ const LightningOutApp = () => {
 };
 
 export default LightningOutApp;
-
