@@ -7,10 +7,10 @@ const LightningOutApp = () => {
   const [loading, setLoading] = useState(true);
   const [logStatus, setLogStatus] = useState("Initializing...");
   
-  // New State to hold dynamic config
-  const [dynamicConfig, setDynamicConfig] = useState({ appId: null });
+  // Store all necessary session data here
+  const [sessionData, setSessionData] = useState(null);
 
-  // 1. On Mount: Check for saved user
+  // 1. On Mount: Check for saved user in LocalStorage
   useEffect(() => {
     const savedUser = localStorage.getItem("sf_debug_user");
     if (savedUser) {
@@ -20,7 +20,16 @@ const LightningOutApp = () => {
     }
   }, []);
 
-  // 2. Connection Logic
+  // 2. WATCHER: Only load the script AFTER the App ID is rendered
+  useEffect(() => {
+    if (sessionData && sessionData.appId) {
+        // The component has re-rendered, so the <lightning-out-application> tag 
+        // is guaranteed to be in the DOM now.
+        loadSalesforceScript();
+    }
+  }, [sessionData]);
+
+  // 3. Step 1: Just get the Data
   const connectToSalesforce = async (userToConnect) => {
     if (!userToConnect) return;
 
@@ -36,54 +45,61 @@ const LightningOutApp = () => {
       if (result.success && result.url) {
         localStorage.setItem("sf_debug_user", userToConnect);
         
-        // Save the dynamic App ID for rendering below
-        setDynamicConfig({ appId: result.appId });
+        // This triggers a re-render. React will put the <lightning-out-application> 
+        // tag in the DOM. The useEffect above will catch this change.
+        setSessionData({
+            appId: result.appId,
+            instanceUrl: result.instanceUrl,
+            frontdoorUrl: result.url
+        });
 
-        setLogStatus("Session active. Loading Salesforce scripts...");
-        
-        const script = document.createElement("script");
-        
-        // CHANGE: Dynamic Instance URL instead of hardcoded string
-        // This ensures it works for Dev Hub, Sandboxes, or Production automatically
-        script.src = `${result.instanceUrl}/lightning/lightning.out.latest/index.iife.prod.js`;
-        
-        script.onload = () => {
-          console.log("LOG [3]: Salesforce script loaded.");
-          const loApp = document.querySelector("lightning-out-application");
-          
-          if (loApp) {
-            console.log("LOG [4]: Attaching handshake...");
-            
-            loApp.addEventListener("ready", () => {
-              console.log("LOG [5]: SUCCESS! 'ready' event captured.");
-              setLoading(false);
-            });
-
-            loApp.setAttribute("frontdoor-url", result.url);
-
-            // FAILSAFE
-            setTimeout(() => {
-              const component = document.querySelector("c-hello-world-lwc");
-              if (component) setLoading(false);
-            }, 3000); 
-
-          } else {
-            setLogStatus("Error: <lightning-out-application> tag missing.");
-          }
-        };
-
-        script.onerror = (err) => {
-            console.error(err);
-            setLogStatus("Network Error: Could not load Salesforce script (CORS or Blocked).");
-        };
-
-        document.body.appendChild(script);
       } else {
         setLogStatus(`API Error: ${result.authData?.error || 'Unknown Error'}`);
       }
     } catch (err) {
       setLogStatus("Crash: " + err.message);
     }
+  };
+
+  // 4. Step 2: Load the Script (Called by useEffect)
+  const loadSalesforceScript = () => {
+    setLogStatus("Session active. Loading Salesforce scripts...");
+        
+    const script = document.createElement("script");
+    script.src = `${sessionData.instanceUrl}/lightning/lightning.out.latest/index.iife.prod.js`;
+    
+    script.onload = () => {
+      console.log("LOG [3]: Salesforce script loaded.");
+      const loApp = document.querySelector("lightning-out-application");
+      
+      if (loApp) {
+        console.log("LOG [4]: Attaching handshake...");
+        
+        loApp.addEventListener("ready", () => {
+          console.log("LOG [5]: SUCCESS! 'ready' event captured.");
+          setLoading(false);
+        });
+
+        loApp.setAttribute("frontdoor-url", sessionData.frontdoorUrl);
+
+        // FAILSAFE: If the event misses for some reason
+        setTimeout(() => {
+          const component = document.querySelector("c-hello-world-lwc");
+          if (component) setLoading(false);
+        }, 4000); 
+
+      } else {
+        // This should theoretically never happen now
+        setLogStatus("Error: <lightning-out-application> tag missing (DOM Issue).");
+      }
+    };
+
+    script.onerror = (err) => {
+        console.error(err);
+        setLogStatus("Network Error: Could not load Salesforce script.");
+    };
+
+    document.body.appendChild(script);
   };
 
   const handleStart = (e) => {
@@ -122,7 +138,7 @@ const LightningOutApp = () => {
       
       <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 100 }}>
         <button onClick={handleDisconnect} style={{ padding: '8px 16px', backgroundColor: '#c23934', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-          Disconnect
+          Disconnect ({usernameInput})
         </button>
       </div>
 
@@ -132,12 +148,12 @@ const LightningOutApp = () => {
         </div>
       )}
 
-      {/* CHANGE: Only render this when we have the App ID */}
-      {dynamicConfig.appId && (
+      {/* RENDER CHECK: The tag is only created if appId exists */}
+      {sessionData && sessionData.appId && (
           <div style={{ opacity: loading ? 0 : 1 }}>
             <lightning-out-application
               components="c-hello-world-lwc"
-              app-id={dynamicConfig.appId} 
+              app-id={sessionData.appId} 
             ></lightning-out-application>
 
             <div className="slds-scope">
